@@ -10,7 +10,6 @@ from bs4 import BeautifulSoup as bs
 # Selenium over requests since it loads all the dynamic components of the site
 from selenium import webdriver
 
-
 # Data structure for storing contact information
 class Contact:
     '''
@@ -37,6 +36,11 @@ class WebScraper:
 
         self.school_links = {}
 
+        self.school_count = 0
+        self.total_sports = 0
+
+        self.driver = webdriver.Chrome()
+
 
     def extract_contacts_from_sport_page(self, page, school, season, sport) -> None:
         '''
@@ -59,8 +63,6 @@ class WebScraper:
         if lst is None:
             print("no grid items found")
             return None
-
-        page_info = {}
 
         # iterate each person with contacts
         for grid_item in lst:
@@ -85,7 +87,7 @@ class WebScraper:
 
             self.contacts.append(Contact(school, sport, season, name, position, "need_to_fill", phone_number, email))
 
-    def extract_sports_links_from_school(self, page: bs) -> None:
+    def extract_sports_links_from_school(self, page: bs, school_name) -> None:
         '''
         Uses the page of a school to extract the sport name, season, and link
         @param page: the page of a school in bs4 format
@@ -102,10 +104,11 @@ class WebScraper:
                 for activity in season_activites:
                     activity_name = activity.find('a').text
                     activity_link = activity.find('a').get('href')
-                    self.extract_contacts_from_sport_page(quick_convert_page(self.origin_url + activity_link), "Albany", season_name, activity_name)
+                    self.extract_contacts_from_sport_page(self.quick_convert_page(self.origin_url + activity_link), school_name, season_name, activity_name)
+                    self.total_sports += 1
 
 
-    def extract_school_names_and_links(self, page: bs):
+    def extract_school_names_and_links(self) -> None:
         '''
         Takes a page and populates the dictionary with school names as the keys and their respective links as the value
         @param page: the page of the schools list in bs4 format
@@ -113,55 +116,107 @@ class WebScraper:
         # Calculate number of pages
 
         # Iterate each page and extract schools with links
-        temp = page.find_all('div', class_='views-row')[:-1]
-        for school in temp:
-            self.school_links[(school.find('a').text).strip()] = school.find('a').get('href')
 
-        for key, value in self.school_links.items():
-            print(f"School: {key}, Link: {value}")
+        current_page = 0
 
+        while current_page == 0:
+            current_url = page_query_builder(self.origin_url + "/schools", current_page)
+
+            page = self.convert_page(current_url)
+            temp = page.find_all('div', class_='views-row')[:-1]
+            if temp == []:
+                break
+            for school in temp:
+                self.school_links[(school.find('a').text).strip()] = school.find('a').get('href')
+                self.school_count += 1
+            print(f"Schools counted: {len(self.school_links)}")
+            current_page += 1
+        # for key, value in self.school_links.items():
+        #     print(f"School: {key}, Link: {value}")
+
+    def perform_scrape(self) -> None:
+        '''
+        Handles the logistics of scraping the site
+        @return: none
+        '''
+
+        # populates the dictionary of school names and their links for later use
+        self.extract_school_names_and_links()
+
+        # iterate each school and extract the contacts
+        for school, link in self.school_links.items():
+            school_page = self.convert_page(self.origin_url + link)
+            self.extract_sports_links_from_school(school_page, school)
+
+        self.write_contacts_to_file()
+        self.print_metrics()
+        self.close()
+        
+
+    def print_metrics(self) -> None:
+        '''
+        Prints the metrics of the scrape
+        '''
+        print(f"Number of Schools: {self.school_count}")
+        print(f"Number of Sports: {self.total_sports}")
+        print(f"Number of Contacts: {len(self.contacts)}")
 
     def list_contacts(self) -> None:
+        '''
+        Prints the contacts that were obtained
+        '''
+
         for contact in self.contacts:
             print(contact)
 
-    def write_to_file(self, filename='contacts.xls') -> None:
-        pass
+    def write_contacts_to_file(self, filename='contacts.csv') -> None:
+        '''
+        Writes the contacts to a csv file
+        '''
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write('School, Sport, Season, Name, Position, Title, Phone Number, Email\n')
+            for contact in self.contacts:
+                f.write(f"{contact.school}, {contact.sport}, {contact.season}, {contact.name}, {contact.position}, {contact.title}, {contact.phone_number}, {contact.email}\n")
+
+    def close(self) -> None:
+        '''
+        Closes the driver
+        '''
+        self.driver.quit()
+
+    
+    def convert_page(self, url) -> bs:
+        self.driver.get(url)
+    
+        self.driver.implicitly_wait(3)
+        time.sleep(5)
+
+        page_source = self.driver.page_source
+        soup = bs(page_source, 'html.parser')
+        return soup
+    
+
+    def quick_convert_page(self,url) -> bs:
+        self.driver.get(url)
+        page_source = self.driver.page_source
+        soup = bs(page_source, 'html.parser')
+        return soup
 
 
 # UNIVERSAL FUNCTIONS
-def convert_page(url) -> bs:
-    driver = webdriver.Chrome()
-    driver.get(url)
-    
-    driver.implicitly_wait(3)
-    time.sleep(5)
+def page_query_builder(url, page_num) -> str:
+    '''
+    Builds the url for the different pages
+    '''
+    return url + f"?page={page_num}"
 
-    page_source = driver.page_source
-    driver.quit()
-    soup = bs(page_source, 'html.parser')
-    return soup
-
-def quick_convert_page(url) -> bs:
-    driver = webdriver.Chrome()
-    driver.get(url)
-
-    page_source = driver.page_source
-    driver.quit()
-    soup = bs(page_source, 'html.parser')
-    return soup
-
+def test_write():
+    with open('contacts.csv', 'w', encoding='utf-8') as f:
+            f.write('School, Sport, Season, Name, Position, Title, Phone Number, Email\n')
 
 
 if __name__ == "__main__":
-    # school_url = 'https://www.mshsl.org/schools/becker-high-school'
-    # school_page = convert_page(school_url)
-    # scrape = WebScraper('https://www.mshsl.org')
-    # scrape.school_to_activity_links(school_page)
-    # scrape.list_contacts()
-
-    schools_url = 'https://www.mshsl.org/schools/'
-    schools_list_page = convert_page(schools_url)
+    # test_write()
     scrape = WebScraper('https://www.mshsl.org')
-    scrape.extract_schools(schools_list_page)
+    scrape.perform_scrape()
 
