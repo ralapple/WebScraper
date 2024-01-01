@@ -1,4 +1,5 @@
-# WebScraper
+# WebScraper Application
+Designed to pull school sport contacts without having to navigate each page of the MSHSL website.
 ### To install
 1. Download the most recent version from the repository
 2. Move the .zip file to the wanted directory
