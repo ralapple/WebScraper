@@ -5,12 +5,13 @@ Developed by: Raymond Lyon
 
 # import necessary libraries
 import time
+import os
+import threading
 from bs4 import BeautifulSoup as bs
 
 # Selenium over requests since it loads all the dynamic components of the site
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-import time
 
 # Data structure for storing contact information
 class Contact:
@@ -18,7 +19,7 @@ class Contact:
     A class to represent contacts
     Each member is stored as a contact object for easy data handling
     '''
-    def __init__(self, school, sport, season, name, position, phone_number, email):
+    def __init__(self, school: str, sport: str, season: str, name: str, position: str, phone_number: str, email: str):
         self.school = school
         self.sport = sport
         self.season = season
@@ -35,22 +36,27 @@ class WebScraper:
     Instance of the web scraper
     Purpose: to scrape the MSHSL website for contact information
     '''
-    def __init__(self, origin_url) -> None:
+    def __init__(self, origin_url: str, file_name: str) -> None:
+        # Object attributes
         self.contacts = []
         self.origin_url = origin_url
         self.school_links = {}
         self.school_count = 0
         self.total_sports = 0
-
+        self.debug = False
+        
+        # Selenium driver setup
         self.chrome_options = Options()
         self.chrome_options.add_argument("--headless")
         self.chrome_options.add_argument("--disable-gpu")
         self.chrome_options.add_argument("--disable-extensions")
         self.driver = webdriver.Chrome(options=self.chrome_options)
-        self.contacts_filepath = 'contacts.csv'
+
+        # File handling
+        self.contacts_filepath = file_name + '.csv'
 
 
-    def extract_contacts_from_sport_page(self, link, school, season, sport) -> None:
+    def extract_contacts(self, sport_page_link: str, school: str, season: str, sport: str) -> None:
         '''
         Takes a list of grid items and extracts the needed information
         @param page: the page of a sport in bs4 format
@@ -61,15 +67,16 @@ class WebScraper:
         '''
 
         # locate the html container that stores the personel info
-        page = self.convert_page(link, 1)
+        page = self.convert_page(sport_page_link, 2)
 
         container = page.find(id='react-team-personnel')
         grid_item_list = container.find_all("div", class_='grid__item')
         print(f"School: {school}, Sport: {sport}, Season: {season}, Number of Contacts: {len(grid_item_list)}")
 
+        # if the dynamic content is not loaded, retry with a longer wait time
         if len(grid_item_list) == 0:
             print("Retrying with longer wait time")
-            page = self.convert_page(link, 2)
+            page = self.convert_page(sport_page_link, 4)
             container = page.find(id='react-team-personnel')
             grid_item_list = container.find_all("div", class_='grid__item')
             print(f"School: {school}, Sport: {sport}, Season: {season}, Number of Contacts: {len(grid_item_list)}")
@@ -103,7 +110,7 @@ class WebScraper:
             # write the contact to the file as it is scraped
             self.write_contact_to_file(contact)
 
-    def extract_sports_links_from_school(self, link: str, school_name) -> None:
+    def extract_sports(self, school_link: str, school_name: str) -> None:
         '''
         Uses the page of a school to extract the sport name, season, and link
         @param page: the page of a school in bs4 format
@@ -111,7 +118,7 @@ class WebScraper:
         '''
         # find the container that stores each of the sports
 
-        page = self.convert_page(link, 2)
+        page = self.convert_page(school_link, 5)
         team_list_container = page.find('div', id = 'react-school-team-list')
         
         if team_list_container:
@@ -121,7 +128,7 @@ class WebScraper:
             # if the dynamic content is not loaded, retry with a longer wait time
             if seasons == []:
                 print("Retrying with longer wait time")
-                page = self.convert_page(link, 6)
+                page = self.convert_page(school_link, 10)
                 team_list_container = page.find('div', id = 'react-school-team-list')
                 seasons = team_list_container.find_all('div', class_ = 'container gutter region--space-md')
                 print(f"School: {school_name}, Number of Seasons: {len(seasons)}")
@@ -132,88 +139,61 @@ class WebScraper:
                 season_activites = season.find_all('span', class_ = 'wrapper-link')
                 # print(f"Number of Activities: {len(season_activites)}")
                 for activity in season_activites:
-                    activity_name = self.replace_comma_in_sport(activity.find('a').text)
+                    activity_name = (activity.find('a').text).replace(',', '-')
                     activity_link = activity.find('a').get('href')
-                    self.extract_contacts_from_sport_page((self.origin_url + activity_link), school_name, season_name, activity_name)
+                    self.extract_contacts((self.origin_url + activity_link), school_name, season_name, activity_name)
                     self.total_sports += 1
 
 
 
-    def extract_school_names_and_links(self, start_page = 0) -> None:
+    def extract_schools(self, page_number=0) -> None:
         '''
-        Takes a page and populates the dictionary with school names as the keys and their respective links as the value
-        @param page: the page of the schools list in bs4 format
+        Uses the origin url to formulate a url for the page that is wanted to scrape, extracts the school names and links from the pages.
+        @param page_number: the page number to scrape
         '''
-        current_page = start_page
-        print("Extracting School Names and Links")
-        while True:
-            current_url = page_query_builder(self.origin_url + "/schools", current_page)
+        print("Extracting School Names and Links of page " + str(page_number))
 
-            page = self.convert_page(current_url, 1)
-            page_content = page.find_all('div', class_='views-row')[:-1]
-            if page_content == []:
-                break
-            for school in page_content:
-                self.school_links[(school.find('a').text).strip()] = school.find('a').get('href')
-                self.school_count += 1
-            current_page += 1
+        current_url = page_query_builder(self.origin_url + "/schools", page_number)
 
-        for school, link in self.school_links.items():
-            print(f"School: {school}, Link: {link}")
+        page = self.convert_page(current_url, 1)
+        page_content = page.find_all('div', class_='views-row')[:-1]
 
+        # iterates each school that was on the page and extracts the name and link
+        for school in page_content:
+            self.school_links[(school.find('a').text).strip()] = school.find('a').get('href')
 
-        print("total school count: ", self.school_count)
+            # counts the number of schools
+            self.school_count += 1
 
-    def perform_scrape(self) -> None:
-        '''
-        Handles the logistics of scraping the site
-        @return: none
-        '''
-        start_time = time.time()
-        self.initialize_file()
+        if self.debug:
+            for school, link in self.school_links.items():
+                print(f"School: {school}, Link: {link}")
 
-        # populates the dictionary of school names and their links for later use
-        self.extract_school_names_and_links(0)
-
-        # iterate each school and extract the contacts
-        for school, link in self.school_links.items():
-            if start_time > 3600:
-                self.driver.quit()
-                self.driver = webdriver.Chrome(options=self.chrome_options)
-            self.extract_sports_links_from_school((self.origin_url + link), school)
-
-        self.print_metrics()
-        self.close()
-        print(f"Time Elapsed: {time.time() - start_time} seconds")
 
     def print_metrics(self) -> None:
         '''
-        Prints the metrics of the scrape
+        Prints the metrics of the scrape after completion to show the user the results.
+        @return: none
         '''
         print(f"Number of Schools: {self.school_count}")
         print(f"Number of Sports: {self.total_sports}")
         print(f"Number of Contacts: {len(self.contacts)}")
 
-    def list_contacts(self) -> None:
-        '''
-        Prints the contacts that were obtained
-        '''
-        for contact in self.contacts:
-            print(contact)
-
+    # FILE HANDLING FUNCTIONS
     def initialize_file(self) -> None:
         '''
-        Initializes the file with the headers of the csv file
-        makes sure that the file is empty before writing.
+        Clears out the file path and writes the headers to the file.
+        @return: none
         '''
         with open(self.contacts_filepath, 'w', encoding='utf-8') as f:
             f.write('School, Sport, Season, Name, Position, Phone Number, Email\n')
         f.close()
 
-
-    def write_contact_to_file(self, contact) -> None:
+    def write_contact_to_file(self, contact: Contact) -> None:
         '''
         Writes a single contact to the file. Used to write contacts as they are scraped.
+        @param contact: the contact object to write to the file
+        @return: none
         '''
         with open(self.contacts_filepath, 'a', encoding='utf-8') as f:
             f.write(f"{contact.school}, {contact.sport}, {contact.season}, {contact.name}, {contact.position}, {contact.phone_number}, {contact.email}\n")
@@ -221,13 +201,17 @@ class WebScraper:
 
     def close(self) -> None:
         '''
-        Closes the selenium driver.
+        Closes the selenium driver for safe exit
+        @return: none
         '''
         self.driver.quit()
 
-    def convert_page(self, url, wait_time = 4) -> bs:
+    def convert_page(self, url: str, wait_time = 4) -> bs:
         '''
-        Converts the page to bs4 format.
+        Converts the page to bs4 format for easy html extraction
+        @param url: the url to convert
+        @param wait_time: the time to wait for the page to load: default is 4 seconds for the dynamic content to load.
+        @return: the page in bs4 format
         '''
         self.driver.get(url)
         time.sleep(wait_time)
@@ -235,19 +219,98 @@ class WebScraper:
         soup = bs(page_source, 'html.parser')
         return soup
     
-    def replace_comma_in_sport(self, sport) -> str:
+    def scrape_handler(self, page_number: int) -> None:
         '''
-        Replaces the comma in the sport name with a dash
+        Handles the logistics of scraping the site, calls the necessary functions to scrape the site
+        @param page_number: the page number to scrape
+        @return: none
         '''
-        return sport.replace(',', '-')
+        start_time = time.time()
 
+        # clear out the file and write the headers
+        self.initialize_file()
+
+        # populates the dictionary of school names and their links for later use
+        self.extract_schools(page_number)
+
+        # iterate each school and extract the contacts
+        for school, link in self.school_links.items():
+
+            # selenium driver closes after 2 hours so this maintains a fresh connection
+            if start_time > 3600:
+                self.driver.quit()
+                print("Restarting Driver for new connection")
+                time.sleep(10)
+                self.driver = webdriver.Chrome(options=self.chrome_options)
+            self.extract_sports((self.origin_url + link), school)
+
+        # Safely close the object
+        self.close()
+
+        if self.debug:
+            print(f"Time Elapsed: {time.time() - start_time} seconds")
+
+    
 # UNIVERSAL FUNCTIONS
-def page_query_builder(url, page_num) -> str:
+def page_query_builder(url, page_num: int) -> str:
     '''
     Builds the url for the different pages
+
     '''
     return url + f"?page={page_num}"
 
+def stitch_contact_files(folder_path: str) -> None:
+    '''
+    Navigates the resource folder and stitches all the contact files into one file.
+    @param folder_path: the path to the folder where the contact files are located
+    @return: none
+    '''
+    files = os.listdir(folder_path)
+
+    with open('contacts.csv', 'w', encoding='utf-8') as f:
+        f.write('School, Sport, Season, Name, Position, Phone Number, Email\n')
+        for file in files:
+            if os.path.isfile(file):
+                with open(file, 'r', encoding='utf-8') as f2:
+                    f.write(f2.read())
+                f2.close()
+
+    f.close()
+    print("All contacts located in contacts.csv")
+
+def multi_handle(start_page = 1, end_page = 1) -> None:
+    '''
+    Handler for efficiently scraping the site with multiple threads.
+    Cuts the runtime down by a factor of 10.
+    Default url is the MSLSH website
+    @param start_page: int: the page number to start on
+    @param end_page: int: the page number to end on includes this page in the scrape
+    @return: none
+    '''
+
+    running_threads = []
+    for i in range(start_page, end_page + 1):
+        scrape = WebScraper('https://www.mshsl.org', './resource/page_' + str(i))
+        thread = threading.Thread(target=scrape.scrape_handler, args=(i-1,))
+        running_threads.append(thread)
+        thread.start()
+
+    for thread in running_threads:
+        thread.join()
+
+    stitch_contact_files('./resource')
+
+def user_interface():
+    '''
+    Handles the user interface for the scraper.
+    @return: none
+    '''
+    print("Welcome to the MSHSL Web Scraper")
+    print("Please enter the page number you would like to start on: ")
+    start_page = int(input())
+    print("Please enter the page number you would like to end on: ")
+    end_page = int(input())
+    multi_handle(start_page, end_page)
+
 if __name__ == "__main__":
-    scrape = WebScraper('https://www.mshsl.org')
-    scrape.perform_scrape()
+    user_interface()
