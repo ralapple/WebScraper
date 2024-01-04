@@ -1,10 +1,10 @@
 '''
-MHSLS Scraping software, extracts the contact information from the MSHSL website for each school, sport, and season
+MHSLS Scraping software, extracts the contact information from the MSHSL website
 Developed by: Raymond Lyon
 Last Modified: 1/4/2024
+Last tested: 1/4/2024 - Working
 '''
 
-# import necessary libraries
 import time
 import os
 import threading
@@ -21,7 +21,8 @@ class Contact:
     A class to represent contacts
     Each member is stored as a contact object for easy data handling
     '''
-    def __init__(self, school: str, sport: str, season: str, name: str, position: str, phone_number: str, email: str):
+    def __init__(self, school: str, sport: str, season: str, name: str,
+                position: str, phone_number: str, email: str):
         self.school = school
         self.sport = sport
         self.season = season
@@ -43,10 +44,8 @@ class WebScraper:
         self.contacts = []
         self.origin_url = origin_url
         self.school_links = {}
-        self.school_count = 0
-        self.total_sports = 0
         self.debug = False
-        
+
         # Selenium driver setup
         self.chrome_options = Options()
         self.chrome_options.add_argument("--headless")
@@ -82,7 +81,7 @@ class WebScraper:
             container = page.find(id='react-team-personnel')
             grid_item_list = container.find_all("div", class_='grid__item')
             print(f"School: {school}, Sport: {sport}, Season: {season}, Number of Contacts: {len(grid_item_list)}")
-        
+
 
         # iterate each person with contacts
         for grid_item in grid_item_list:
@@ -122,7 +121,7 @@ class WebScraper:
 
         page = self.convert_page(school_link, 5)
         team_list_container = page.find('div', id = 'react-school-team-list')
-        
+
         if team_list_container:
             seasons = team_list_container.find_all('div', class_ = 'container gutter region--space-md')
             print(f"School: {school_name}, Number of Seasons: {len(seasons)}")
@@ -144,7 +143,6 @@ class WebScraper:
                     activity_name = (activity.find('a').text).replace(',', '-')
                     activity_link = activity.find('a').get('href')
                     self.extract_contacts((self.origin_url + activity_link), school_name, season_name, activity_name)
-                    self.total_sports += 1
 
 
 
@@ -164,22 +162,9 @@ class WebScraper:
         for school in page_content:
             self.school_links[((school.find('a').text).strip()).replace(',', '-')] = school.find('a').get('href')
 
-            # counts the number of schools
-            self.school_count += 1
-
         if self.debug:
             for school, link in self.school_links.items():
                 print(f"School: {school}, Link: {link}")
-
-
-    def print_metrics(self) -> None:
-        '''
-        Prints the metrics of the scrape after completion to show the user the results.
-        @return: none
-        '''
-        print(f"Number of Schools: {self.school_count}")
-        print(f"Number of Sports: {self.total_sports}")
-        print(f"Number of Contacts: {len(self.contacts)}")
 
     # FILE HANDLING FUNCTIONS
     def initialize_file(self) -> None:
@@ -220,7 +205,7 @@ class WebScraper:
         page_source = self.driver.page_source
         soup = bs(page_source, 'html.parser')
         return soup
-    
+
     def scrape_handler(self, page_number: int) -> None:
         '''
         Handles the logistics of scraping the site, calls the necessary functions to scrape the site
@@ -252,7 +237,7 @@ class WebScraper:
         if self.debug:
             print(f"Time Elapsed: {time.time() - start_time} seconds")
 
-    
+
 # UNIVERSAL FUNCTIONS
 def page_query_builder(url, page_num: int) -> str:
     '''
