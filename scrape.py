@@ -8,6 +8,7 @@ import time
 import os
 import threading
 from bs4 import BeautifulSoup as bs
+import pandas as pd
 
 # Selenium over requests since it loads all the dynamic components of the site
 from selenium import webdriver
@@ -89,7 +90,7 @@ class WebScraper:
             phone_number = 'no phone number listed'
 
             # extract name and position
-            name = grid_item.find("div", class_='team-personel-title').find("strong").text
+            name = (grid_item.find("div", class_='team-personel-title').find("strong").text).replace(',', '') + "(Edited- may be format last/first)"
             position = grid_item.find("div", class_='team-personel-position').text
 
             # iterate the contacts of each person
@@ -160,7 +161,7 @@ class WebScraper:
 
         # iterates each school that was on the page and extracts the name and link
         for school in page_content:
-            self.school_links[(school.find('a').text).strip()] = school.find('a').get('href')
+            self.school_links[((school.find('a').text).strip()).replace(',', '-')] = school.find('a').get('href')
 
             # counts the number of schools
             self.school_count += 1
@@ -265,28 +266,57 @@ def stitch_contact_files(folder_path: str) -> None:
     @param folder_path: the path to the folder where the contact files are located
     @return: none
     '''
-    files = os.listdir(folder_path)
 
-    with open('contacts.csv', 'w', encoding='utf-8') as f:
-        f.write('School, Sport, Season, Name, Position, Phone Number, Email\n')
-        for file in files:
-            if os.path.isfile(file):
-                with open(file, 'r', encoding='utf-8') as f2:
-                    f.write(f2.read())
-                f2.close()
+    csv_files = [file for file in os.listdir(folder_path) if file.endswith('.csv')]
+    csv_files = sorted(csv_files, key=lambda x: int((x.split('_')[1]).split('.')[0]))
 
-    f.close()
-    print("All contacts located in contacts.csv")
+    if not csv_files:
+        print("No files to stitch")
+        return
+
+
+    combined_csv = pd.DataFrame()
+    first_file = True
+    for file in csv_files:
+        current_file = pd.read_csv(os.path.join(folder_path, file))
+
+        if not first_file:
+            current_file = current_file[1:]
+
+        combined_csv = pd.concat([combined_csv, current_file])
+
+        first_file = False
+
+    combined_csv.to_csv('contacts.csv', index=False, encoding='utf-8')
+
+    directory = os.listdir(folder_path)
+    for file in directory:
+        if file.endswith('.csv'):
+            os.remove(os.path.join(folder_path, file))
+
+    data = pd.read_csv('contacts.csv')
+    data.to_excel('contacts.xlsx', index=False)
+    print("All contacts located in contacts.csv and exported to excel file")
 
 def multi_handle(start_page = 1, end_page = 1) -> None:
     '''
     Handler for efficiently scraping the site with multiple threads.
     Cuts the runtime down by a factor of 10.
     Default url is the MSLSH website
+    Start page and end page can only be values 1 - 14
     @param start_page: int: the page number to start on
     @param end_page: int: the page number to end on includes this page in the scrape
     @return: none
     '''
+    # catch pages out of bounds
+    if start_page > 14:
+        start_page = 14
+    if end_page > 14:
+        end_page = 14
+    if start_page < 1:
+        start_page = 1
+    if end_page < 1:
+        end_page = 1
 
     running_threads = []
     for i in range(start_page, end_page + 1):
@@ -306,11 +336,12 @@ def user_interface():
     @return: none
     '''
     print("Welcome to the MSHSL Web Scraper")
-    print("Please enter the page number you would like to start on: ")
+    print("Please enter the page number you would like to start on: (min 1, max 14)")
     start_page = int(input())
-    print("Please enter the page number you would like to end on: ")
+    print("Please enter the page number you would like to end on: (min 1, max 14)")
     end_page = int(input())
     multi_handle(start_page, end_page)
+    print("Contacts stored in contacts.csv and contacts.xlsx")
 
 if __name__ == "__main__":
     user_interface()
