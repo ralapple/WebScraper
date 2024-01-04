@@ -1,33 +1,18 @@
 # WebScraper Application
-Designed to pull school sport contacts without having to navigate each page of the MSHSL website.
-### To install
-1. Download the most recent version from the repository
-2. Move the .zip file to the wanted directory
-3. Unzip the code
-### Before running
-- Ensure you have the following packages
-- BeautifulSoup4
-- Selenium
-- Python3
-### To Install These Packages
-##### BeautifulSoup
-```
-pip install beautifulsoup4
-```
-##### Selenium
-```
-pip install selenium
-```
-##### Python3
-```
-pip install python3
-```
+Designed to pull contacts off of the MSHSL website without having to navigate and collect by hand.
 
-### To run
-1. Navigate to the directory where the code is located
-2. run command "make"
-3. The program should run
-- Note: this will take awhile since it is a large dynamic website.
-4. The output csv file will be found within the "main" folder
+## Requirements
+- This application runs on a few packages that make the functionality possible.
+- To install these packages, pip is used.
+- Once you have verified that pip is installed, run the command ```make depend```
+- This will attempt to install all of the necessary requirements that are used within this project.
+
+## Running the Program
+This program is ran through the terminal. There is a rudimentary user interface that allows the user to select which pages of the website they wish to collect contacts from.
+
+1. Use the terminal to navigate to the directory in which the code is stored.
+2. type the command ```make run```.
+3. This will begin the program and prompt for more user input.
+4.
 
 - Developed by Raymond Lyon

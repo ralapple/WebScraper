@@ -1,6 +1,7 @@
 '''
 MHSLS Scraping software, extracts the contact information from the MSHSL website for each school, sport, and season
 Developed by: Raymond Lyon
+Last Modified: 1/4/2024
 '''
 
 # import necessary libraries
