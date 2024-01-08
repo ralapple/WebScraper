@@ -7,6 +7,10 @@ Designed to pull contacts off of the MSHSL website without having to navigate an
 - Once you have verified that pip is installed, run the command ```make depend```.
 - This will attempt to install all of the necessary requirements that are used within this project.
 
+#### Packages Used in this Project
+- Pandas - converting to file formats and stitching csv files together.
+- Beautifulsoup4 - collecting and deconstructing the HTML of the webpage.
+
 ## Running the Program
 This program is ran through the terminal. There is a rudimentary user interface that allows the user to select which pages of the website they wish to collect contacts from.
 
