@@ -16,11 +16,13 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
 # Data structure for storing contact information
+# pylint: disable=too-few-public-methods
 class Contact:
     '''
     A class to represent contacts
     Each member is stored as a contact object for easy data handling
     '''
+    # pylint: disable=too-many-arguments
     def __init__(self, school: str, sport: str, season: str, name: str,
                 position: str, phone_number: str, email: str):
         self.school = school
@@ -32,7 +34,10 @@ class Contact:
         self.email = email
 
     def __str__(self):
-        return f"{self.school} - {self.sport} - {self.season} - {self.name} - {self.position} - {self.phone_number} - {self.email}"
+        return (
+            f"{self.school} - {self.sport} - {self.season} "
+            f"- {self.name} - {self.position} - {self.phone_number} - {self.email}"
+        )
 
 class WebScraper:
     '''
@@ -72,7 +77,9 @@ class WebScraper:
 
         container = page.find(id='react-team-personnel')
         grid_item_list = container.find_all("div", class_='grid__item')
-        print(f"School: {school}, Sport: {sport}, Season: {season}, Number of Contacts: {len(grid_item_list)}")
+        print(
+            f"School: {school}, Sport: {sport}"
+            f", Season: {season}, Number of Contacts: {len(grid_item_list)}")
 
         # if the dynamic content is not loaded, retry with a longer wait time
         if len(grid_item_list) == 0:
@@ -80,7 +87,9 @@ class WebScraper:
             page = self.convert_page(sport_page_link, 4)
             container = page.find(id='react-team-personnel')
             grid_item_list = container.find_all("div", class_='grid__item')
-            print(f"School: {school}, Sport: {sport}, Season: {season}, Number of Contacts: {len(grid_item_list)}")
+            print(
+                f"School: {school}, Sport: {sport}"
+                f", Season: {season}, Number of Contacts: {len(grid_item_list)}")
 
 
         # iterate each person with contacts
@@ -90,7 +99,9 @@ class WebScraper:
             phone_number = 'no phone number listed'
 
             # extract name and position
-            name = (grid_item.find("div", class_='team-personel-title').find("strong").text).replace(',', '') + "(Edited- may be format last/first)"
+            name = (grid_item.find("div", class_='team-personel-title').find("strong"))
+            if ',' in name:
+                name = name.replace(',', '') + "(Edited- may be format last/first)"
             position = grid_item.find("div", class_='team-personel-position').text
 
             # iterate the contacts of each person
@@ -123,7 +134,8 @@ class WebScraper:
         team_list_container = page.find('div', id = 'react-school-team-list')
 
         if team_list_container:
-            seasons = team_list_container.find_all('div', class_ = 'container gutter region--space-md')
+            seasons = team_list_container.find_all(
+                'div', class_ = 'container gutter region--space-md')
             print(f"School: {school_name}, Number of Seasons: {len(seasons)}")
 
             # if the dynamic content is not loaded, retry with a longer wait time
@@ -131,7 +143,8 @@ class WebScraper:
                 print("Retrying with longer wait time")
                 page = self.convert_page(school_link, 10)
                 team_list_container = page.find('div', id = 'react-school-team-list')
-                seasons = team_list_container.find_all('div', class_ = 'container gutter region--space-md')
+                seasons = team_list_container.find_all(
+                    'div', class_ = 'container gutter region--space-md')
                 print(f"School: {school_name}, Number of Seasons: {len(seasons)}")
 
             # iterate each season capturing the season name and the activities
@@ -142,16 +155,18 @@ class WebScraper:
                 for activity in season_activites:
                     activity_name = (activity.find('a').text).replace(',', '-')
                     activity_link = activity.find('a').get('href')
-                    self.extract_contacts((self.origin_url + activity_link), school_name, season_name, activity_name)
+                    self.extract_contacts(
+                        (self.origin_url + activity_link), school_name, season_name, activity_name)
 
 
 
     def extract_schools(self, page_number=0) -> None:
         '''
-        Uses the origin url to formulate a url for the page that is wanted to scrape, extracts the school names and links from the pages.
+        Uses the origin url to formulate a url for the page that is wanted to scrape, 
+        extracts the school names and links from the pages.
         @param page_number: the page number to scrape
         '''
-        print("Extracting School Names and Links of page " + str(page_number))
+        print("Extracting School Names and Links of page " + str(page_number + 1))
 
         current_url = page_query_builder(self.origin_url + "/schools", page_number)
 
@@ -160,7 +175,8 @@ class WebScraper:
 
         # iterates each school that was on the page and extracts the name and link
         for school in page_content:
-            self.school_links[((school.find('a').text).strip()).replace(',', '-')] = school.find('a').get('href')
+            school_name = ((school.find('a').text).strip()).replace(',', '-')
+            self.school_links[school_name] = school.find('a').get('href')
 
         if self.debug:
             for school, link in self.school_links.items():
@@ -183,7 +199,9 @@ class WebScraper:
         @return: none
         '''
         with open(self.contacts_filepath, 'a', encoding='utf-8') as f:
-            f.write(f"{contact.school}, {contact.sport}, {contact.season}, {contact.name}, {contact.position}, {contact.phone_number}, {contact.email}\n")
+            f.write(
+                f"{contact.school}, {contact.sport}, {contact.season}"
+                f", {contact.name}, {contact.position}, {contact.phone_number}, {contact.email}\n")
         f.close()
 
     def close(self) -> None:
@@ -197,7 +215,8 @@ class WebScraper:
         '''
         Converts the page to bs4 format for easy html extraction
         @param url: the url to convert
-        @param wait_time: the time to wait for the page to load: default is 4 seconds for the dynamic content to load.
+        @param wait_time: the time to wait for the page to load: 
+            default is 4 seconds for the dynamic content to load.
         @return: the page in bs4 format
         '''
         self.driver.get(url)
@@ -224,7 +243,7 @@ class WebScraper:
         for school, link in self.school_links.items():
 
             # selenium driver closes after 2 hours so this maintains a fresh connection
-            if start_time > 3600:
+            if (time.time() - start_time) > 3600:
                 self.driver.quit()
                 print("Restarting Driver for new connection")
                 time.sleep(10)
@@ -295,14 +314,8 @@ def multi_handle(start_page = 1, end_page = 1) -> None:
     @return: none
     '''
     # catch pages out of bounds
-    if start_page > 14:
-        start_page = 14
-    if end_page > 14:
-        end_page = 14
-    if start_page < 1:
-        start_page = 1
-    if end_page < 1:
-        end_page = 1
+    start_page = max(1, min(start_page, 14))
+    end_page = max(1, min(end_page, 14))
 
     running_threads = []
     for i in range(start_page, end_page + 1):
