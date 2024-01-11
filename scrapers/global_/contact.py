@@ -1,7 +1,7 @@
+#pylint disable=invalid-name
 '''
-UserContact class for the Webscrapers
+contact class for the webscrapers use.
 '''
-
 class Contact:
     '''
     Class for user contact information and methods for data manipulation

@@ -2,9 +2,16 @@
 Web scraper for the state of Wisconsin schools
 '''
 
+
+sys.path.insert(1, 'scrapers/global_')
+from webscraper import WebScraper
+from contact import Contact
+
+
 import time
 import threading
 import os
+import sys
 from bs4 import BeautifulSoup as bs
 import pandas as pd
 from selenium import webdriver
@@ -13,96 +20,20 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 
-# pylint disable=too-few-public-methods
-class UserContact:
-    '''
-    Class for user contact information and methods for data manipulation
-    '''
-    # pylint disable=too-many-arguments
-    def __init__(self, school: str, sport: str,
-                 season: str, name: str, title: str, email: str, phone: str):
-        self.school = school
-        self.sport = sport
-        self.season = season
-        self.name = name
-        self.title = title
-        self.email = email
-        self.phone = phone
-
-    def write_to_csv(self, file_name: str):
-        '''
-        Writes self to the designated csv file
-        @param file_name: name of the file to write to
-        @return: None
-        '''
-        with open(file_name, 'a', encoding='utf-8') as file:
-            file.write(
-                f"{self.school}, {self.sport}, {self.season}"
-                f", {self.name}, {self.title}, {self.email}, {self.phone}\n"
-            )
-        file.close()
-
-    def __str__(self):
-        '''
-        overridden string method for printing out a contact
-        @return: string representation of the contact
-        '''
-        return (
-            f"{self.school}, {self.sport}, {self.season}"
-            f", {self.name}, {self.title}, {self.email}, {self.phone}"
-        )
 
 
-class WebScrape:
+class WiWebScrape(WebScraper):
     '''
     instance of a webscrape object used for collecting contact information
     '''
     def __init__(self, url: str, fp = 'contacts.csv') -> None:
+        self: WebScraper.__init__(self, url, fp)
         self.url = url
         self.driver = self.initialize_driver()
         self.school_links = {}
 
         self.file_name = fp
         self.debug = False
-
-    def refresh_driver(self) -> None:
-        '''
-        Closes the driver, waits, and reinitializes a new driver.
-        Necessary since the driver will timeout after 2 hours of use.
-        @return: None
-        '''
-        self.driver.quit()
-        time.sleep(4)
-        self.driver = self.initialize_driver()
-
-    def initialize_driver(self) -> webdriver:
-        '''
-        Initializes a Selenium webdriver used in fetching the html pages.
-        Sets the driver to headless mode, disables any unnecessary add-ons.
-        @return: Selenium webdriver object
-        '''
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument('window-size=1920x1080')
-        driver = webdriver.Chrome(options=chrome_options)
-        return driver
-
-    def initialize_file(self) -> None:
-        '''
-        Initializes the file that the contacts are written to.
-        File path is stored in self.file_name
-        Has a very broad exception handler since it will create a file if none is found.
-        @return: None
-        '''
-        try:
-            with open(self.file_name, 'w', encoding='utf-8') as file:
-                file.write('School, Sport, Season, Name, Title, Email, Phone\n')
-            file.close()
-        # pylint disable=broad-except
-        except Exception as exc:
-            print(exc)
 
     def set_page_select_length(self,url: str, length: int) -> None:
         '''
@@ -192,7 +123,7 @@ class WebScrape:
                 else:
                     season = 'N/A'
 
-                UserContact(
+                Contact(
                     school_name, sport, season, name, title, email, phone
                     ).write_to_csv(self.file_name)
 
@@ -347,12 +278,12 @@ def multi_handle(start_page = 1, end_page = 1) -> None:
 
     page_destinction = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
     index = 0
-    # pylint disable=unused-variable
+    #pylint disable=unused-variable
     for j in range(num_tens):
         running_threads = []
         for i in range(10):
-            scrape = WebScrape('https://schools.wiaawi.org/',
-                                './resource/page_' + str(page_destinction[index]) + '.csv')
+            scrape = WiWebScrape('https://schools.wiaawi.org/',
+                                'scrapers/wi/resource/page_' + str(page_destinction[index]) + '.csv')
             thread = threading.Thread(
                 target=scrape.instance_handler, args=(page_destinction[index],))
             running_threads.append(thread)
@@ -363,10 +294,10 @@ def multi_handle(start_page = 1, end_page = 1) -> None:
             thread.join()
 
     running_threads = []
-    # pylint disable=unused-variable
+    #Pylint disable=unused-variable
     for remain in range(reaminder):
-        scrape = WebScrape('https://schools.wiaawi.org/',
-                            './resource/page_' + str(page_destinction[index]) + '.csv')
+        scrape = WiWebScrape('https://schools.wiaawi.org/',
+                            'scrapers/wi/resource/page_' + str(page_destinction[index]) + '.csv')
         thread = threading.Thread(target=scrape.instance_handler, args=(page_destinction[index],))
         running_threads.append(thread)
         thread.start()
@@ -374,8 +305,7 @@ def multi_handle(start_page = 1, end_page = 1) -> None:
 
     for thread in running_threads:
         thread.join()
-    stitch_contact_files('./resource')
+    stitch_contact_files('scrapers/wi/resource')
 
 if __name__ == '__main__':
-    #multi_handle(1,26)
-    stitch_contact_files('./resource')
+    multi_handle(1,26)

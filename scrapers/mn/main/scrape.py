@@ -319,7 +319,7 @@ def multi_handle(start_page = 1, end_page = 1) -> None:
 
     running_threads = []
     for i in range(start_page, end_page + 1):
-        scrape = WebScraper('https://www.mshsl.org', './resource/page_' + str(i))
+        scrape = WebScraper('https://www.mshsl.org', 'scrapers/mn/resource/page_' + str(i))
         thread = threading.Thread(target=scrape.scrape_handler, args=(i-1,))
         running_threads.append(thread)
         thread.start()

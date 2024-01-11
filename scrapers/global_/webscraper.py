@@ -1,3 +1,4 @@
+#pylint disable=invalid-name
 '''
 Parent class of each webscraper. Generalized classes are here to reduce code duplication.
 '''
@@ -55,6 +56,6 @@ class WebScraper:
             with open(self.file_name, 'w', encoding='utf-8') as file:
                 file.write('School, Sport, Season, Name, Title, Email, Phone\n')
             file.close()
-        # pylint disable=broad-except
+        #pylint disable=broad-exception-caught
         except Exception as exc:
             print(exc)
