@@ -299,8 +299,8 @@ def stitch_contact_files(folder_path: str) -> None:
         if file.endswith('.csv'):
             os.remove(os.path.join(folder_path, file))
 
-    data = pd.read_csv('contacts.csv')
-    data.to_excel('contacts.xlsx', index=False)
+    data = pd.read_csv('mn_contacts.csv')
+    data.to_excel('mn_contacts.xlsx', index=False)
     print("All contacts located in contacts.csv and exported to excel file")
 
 def multi_handle(start_page = 1, end_page = 1) -> None:
