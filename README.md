@@ -1,5 +1,5 @@
 # WebScraper Application
-Designed to pull contacts off of the MSHSL website without having to navigate and collect by hand. This is not intened to be malicious or dangerous to the MSHSL website. More scraping software is being developed, for more information, reach out via email.
+Designed to pull contacts off of the websites without having to navigate and collect by hand. This is not intened to be malicious or dangerous to any website. More scraping software is being developed, for more information, reach out via email.
 
 ## Requirements
 - This application runs on a few packages that make the functionality possible.
@@ -31,4 +31,4 @@ This program is ran through the terminal. There is a rudimentary user interface 
 - Email: Lyon0210@umn.edu
 
 ##### Disclaimer
-This software was developed with the intent to safely extract contacts from the MSHSL website without having to manually navigate and record each contact. There were no malicious acts intended in the creation of this software. 
+This software was developed with the intent to safely extract contacts from websites without having to manually navigate and record each contact. There were no malicious acts intended in the creation of this software. 
